@@ -4,8 +4,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { db } from '../../Conexion/firebaseConfig';
 import { collection, addDoc } from 'firebase/firestore';
 
-  
-
 const Productos = () => {
   const [nombre, setNombre] = useState('');
   const [precio, setPrecio] = useState('');
@@ -13,19 +11,17 @@ const Productos = () => {
   const [cantidad, setCantidad] = useState('');
   const [categoria, setCategoria] = useState('');
   const [imagenURL, setImagenURL] = useState(null);
-  const [fechacaducidad, setFechacaducidad] = useState(null);
+  const [fechacaducidad, setFechacaducidad] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
+
   const guardarProducto = async () => {
-    if (!nombre || !precio || !descripcion || !cantidad || !categoria || !imagenURL ||!fechacaducidad) {
+    if (!nombre || !precio || !descripcion || !cantidad || !categoria || !imagenURL || !fechacaducidad) {
       Alert.alert("Error", "Por favor completa todos los campos requeridos.");
       return;
     }
-  
-    try {
-     
-      const productoRef = collection(db, "productos"); 
-  
 
+    try {
+      const productoRef = collection(db, "productos"); 
       await addDoc(productoRef, {
         nombre,
         precio,
@@ -35,10 +31,9 @@ const Productos = () => {
         imagenURL,
         fechacaducidad,
       });
-  
+
       Alert.alert("Producto guardado con éxito!");
-  
-    
+
       setNombre('');
       setPrecio('');
       setDescripcion('');
@@ -46,14 +41,24 @@ const Productos = () => {
       setCategoria('');
       setImagenURL(null);
       setFechacaducidad('');
-  
     } catch (error) {
       console.error("Error al guardar el producto:", error);
       Alert.alert("Hubo un error al guardar el producto.");
     }
   };
-  
- 
+
+
+  const handleFechaChange = (text) => {
+
+    let newText = text.replace(/[^0-9/]/g, ''); 
+   
+    if (newText.length === 2 || newText.length === 5) {
+      newText += '/'; 
+    }
+    
+    setFechacaducidad(newText);
+  };
+
   const seleccionarFoto = async (source) => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -146,7 +151,7 @@ const Productos = () => {
       <TextInput 
         style={styles.input} 
         value={fechacaducidad} 
-        onChangeText={setFechacaducidad} 
+        onChangeText={handleFechaChange} 
         placeholder="Fecha Caducidad de Producto" 
       />
         

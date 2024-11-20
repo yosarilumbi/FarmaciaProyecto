@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, Image, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, Button } from 'react-native';
+import { View, Text, FlatList, Image, StyleSheet, TouchableOpacity, Alert, Modal, TextInput, Button, RefreshControl } from 'react-native';
 import { db } from '../../Conexion/firebaseConfig';
 import { collection, getDocs, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 
@@ -7,11 +7,13 @@ const ListaProductos = () => {
   const [productos, setProductos] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [productoEdit, setProductoEdit] = useState(null);
+  const [refreshing, setRefreshing] = useState(false); 
 
   useEffect(() => {
     obtenerProductos();
   }, []);
 
+  
   const obtenerProductos = async () => {
     try {
       const productosRef = collection(db, "productos");
@@ -21,12 +23,21 @@ const ListaProductos = () => {
         ...doc.data(),
       }));
       setProductos(productosData);
+      setRefreshing(false);
     } catch (error) {
       console.error("Error al obtener productos:", error);
-      Alert.alert("Error", "Hubo un problema al cargar los productos.");
+      Alert.alert("Error", "Hubo un problema al cargar los productos. Intenta nuevamente.");
+      setRefreshing(false); 
     }
   };
 
+  
+  const onRefresh = () => {
+    setRefreshing(true);  
+    obtenerProductos();   
+  };
+
+  
   const eliminarProducto = async (id) => {
     try {
       await deleteDoc(doc(db, "productos", id));
@@ -38,14 +49,22 @@ const ListaProductos = () => {
     }
   };
 
+ 
   const abrirEditarProducto = (producto) => {
     setProductoEdit(producto);
     setModalVisible(true);
   };
 
+  
   const guardarEdicion = async () => {
-    if (!productoEdit.nombre || !productoEdit.categoria || !productoEdit.descripcion) {
+    if (!productoEdit.nombre || !productoEdit.categoria || !productoEdit.descripcion || !productoEdit.precio) {
       Alert.alert("Error", "Por favor completa todos los campos requeridos.");
+      return;
+    }
+
+    const precio = parseFloat(productoEdit.precio);
+    if (isNaN(precio)) {
+      Alert.alert("Error", "El precio debe ser un número válido.");
       return;
     }
 
@@ -56,6 +75,7 @@ const ListaProductos = () => {
         categoria: productoEdit.categoria,
         descripcion: productoEdit.descripcion,
         imagenURL: productoEdit.imagenURL,
+        precio: precio,
       });
       Alert.alert("Producto actualizado con éxito.");
       setModalVisible(false);
@@ -66,6 +86,7 @@ const ListaProductos = () => {
     }
   };
 
+ 
   const renderItem = ({ item }) => (
     <View style={styles.card}>
       {item.imagenURL ? (
@@ -77,6 +98,9 @@ const ListaProductos = () => {
         <Text style={styles.nombre}>{item.nombre}</Text>
         <Text style={styles.categoria}>{item.categoria}</Text>
         <Text style={styles.descripcion}>{item.descripcion}</Text>
+        <Text style={styles.precio}>
+          {item.precio ? `${item.precio}` : 'Precio no disponible'}
+        </Text>
       </View>
       <View style={styles.actions}>
         <TouchableOpacity onPress={() => abrirEditarProducto(item)} style={styles.editButton}>
@@ -96,6 +120,12 @@ const ListaProductos = () => {
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.lista}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}  
+            onRefresh={onRefresh}    
+          />
+        }
       />
 
       <Modal visible={modalVisible} animationType="slide" transparent={true}>
@@ -120,6 +150,13 @@ const ListaProductos = () => {
               onChangeText={(text) => setProductoEdit({ ...productoEdit, descripcion: text })}
               placeholder="Descripción"
               multiline
+            />
+            <TextInput
+              style={styles.input}
+              value={productoEdit?.precio?.toString()} 
+              onChangeText={(text) => setProductoEdit({ ...productoEdit, precio: text })}
+              placeholder="Precio"
+              keyboardType="numeric"
             />
             <Button title="Guardar Cambios" onPress={guardarEdicion} />
             <Button title="Cancelar" color="red" onPress={() => setModalVisible(false)} />
@@ -166,6 +203,7 @@ const styles = StyleSheet.create({
   nombre: { fontSize: 18, fontWeight: 'bold', color: '#333' },
   categoria: { fontSize: 14, color: '#777', marginVertical: 4 },
   descripcion: { fontSize: 14, color: '#555' },
+  precio: { fontSize: 16, color: '#333', fontWeight: 'bold' }, 
   actions: { flexDirection: 'row' },
   editButton: { backgroundColor: '#4CAF50', padding: 5, borderRadius: 5, marginRight: 5 },
   editText: { color: '#fff', fontWeight: 'bold' },
@@ -186,9 +224,9 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 10 },
   input: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
+    borderColor: '#ddd',
     padding: 10,
+    borderRadius: 5,
     marginBottom: 10,
   },
 });
